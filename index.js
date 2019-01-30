@@ -5,9 +5,10 @@ const parseUrl = require('url-parse');
 const fileUrl = require('file-url');
 const isUrl = require('is-url');
 
+
 const argv = require('yargs')
     .command({
-        command: 'print <input> <output>',
+        command: 'print <input> [output]',
         desc: 'Print an HTML file or URL to PDF',
         builder: {
             background: {
@@ -72,19 +73,27 @@ const argv = require('yargs')
     .help()
     .argv;
 
+function log(str, shouldWrite) 
+{
+    if (shouldWrite)
+    {
+        console.log(str);
+    }
+}
+
 async function print(argv) {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const url = isUrl(argv.input) ? parseUrl(argv.input).toString() : fileUrl(argv.input);
 
-    console.log(`Loading ${url}`);
+    log(`Loading ${url}`,argv.output);
     await page.goto(url, {
         timeout: argv.timeout
     });
 
-    console.log(`Writing ${argv.output}`);
-    await page.pdf({
-        path: argv.output,
+    log(`Writing ${argv.output}`,argv.output);
+    
+    var opts = {
         format: argv.format,
         landscape: argv.landscape,
         printBackground: argv.background,
@@ -94,9 +103,18 @@ async function print(argv) {
             bottom: argv.marginBottom,
             left: argv.marginLeft
         }
-    });
+    };
+    if (argv.output) {
+        opts.path = argv.output;
+    }
+    const stdoutData = await page.pdf(opts)
+    if (!argv.output)
+    {
+        process.stdout.write(stdoutData);
+    }
 
-    console.log('Done');
+
+    log(`Done`,argv.output);
     await browser.close();
 }
 
@@ -105,15 +123,28 @@ async function screenshot(argv) {
     const page = await browser.newPage();
     const url = isUrl(argv.input) ? parseUrl(argv.input).toString() : fileUrl(argv.input);
 
-    console.log(`Loading ${url}`);
+    log(`Loading ${url}`,argv.output);
     await page.goto(url);
 
+
     console.log(`Writing ${argv.output}`);
-    await page.screenshot({
-        path: argv.output,
-        fullPage: argv.fullPage,
-        omitBackground: argv.omitBackground
-    });
+    var opts = {
+        format: argv.format,
+        landscape: argv.landscape,
+        printBackground: argv.background,
+        margin: {
+            fullPage: argv.fullPage,
+            omitBackground: argv.omitBackground
+        }
+    };
+    if (argv.output) {
+        opts.path = argv.output;
+    }
+    const stdoutData = await page.screenshot(opts)
+    if (!argv.output)
+    {
+        process.stdout.write(stdoutData);
+    }
 
     console.log('Done');
     await browser.close();
